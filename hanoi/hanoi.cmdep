@@ -1,2 +1,0 @@
-hanoi.cmobj hanoi.cmdep: hanoi.c ../common/inc/Log.h ../common/inc/stack.h \
-  ../common/inc/MemAdapter.h ../common/inc/DriverMem.h
