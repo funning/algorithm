@@ -1,0 +1,3 @@
+../maze/maze.cmobj ../maze/maze.cmdep: ../maze/maze.c ../common/inc/stack.h ../common/inc/DriverMem.h \
+  ../common/inc/MemAdapter.h ../common/inc/Log.h \
+  ../common/inc/MemBookkeeper.h ../common/inc/Queue.h
