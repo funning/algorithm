@@ -52,6 +52,7 @@ int part(priceIndex* priceIndexList, int start, int end) {
 	priceIndexList[middle] = startNode;
 	return middle;
 }
+
 void quickSort(priceIndex* priceIndexList, int num) {
 	int middle = 0;
 	if (num <= 1) {
@@ -64,6 +65,7 @@ void quickSort(priceIndex* priceIndexList, int num) {
 	quickSort(priceIndexList, middle);
 	quickSort(priceIndexList+middle+1, num - middle - 1);
 }
+
 void doPriceDescend(int *priceDescend, int *weight, int *value, int num) {
 	int i = 0;
 	priceIndex* priceIndexList = tk_calloc(1, sizeof(priceIndex)*num);
