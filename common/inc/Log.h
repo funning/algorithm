@@ -12,7 +12,7 @@
 
 #define TK_NULL 0
 #ifndef TK_LOG_LEVEL
-#define TK_LOG_LEVEL TK_LOG_MAX
+#define TK_LOG_LEVEL TK_LOG_ERROR
 #endif
 
 #if TK_LOG_LEVEL <= TK_LOG_ERROR

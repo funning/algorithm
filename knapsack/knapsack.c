@@ -22,8 +22,47 @@ typedef struct {
 	float price;
 }priceIndex;
 
-void sort(priceIndex* priceIndexList, int num) {
-	//todo
+int part(priceIndex* priceIndexList, int start, int end) {
+	int middle = start, i = start, j = end;
+	priceIndex startNode = {0};
+	if (start >= end) {
+		return middle;
+	}
+	startNode = priceIndexList[end];
+	while(i < j) {
+		while(i < j) {
+			priceIndex tmp = priceIndexList[i++];
+			if (tmp.price <= startNode.price) {
+				priceIndexList[j] = tmp;
+				i--;
+				break;
+			}
+		}
+		while(i < j) {
+			priceIndex tmp = priceIndexList[j--];
+			if (tmp.price > startNode.price) {
+				priceIndexList[i] = tmp;
+				j++;
+				break;
+			}
+
+		}
+	}
+	middle = i;
+	priceIndexList[middle] = startNode;
+	return middle;
+}
+void quickSort(priceIndex* priceIndexList, int num) {
+	int middle = 0;
+	if (num <= 1) {
+		return;
+	}
+	if (priceIndexList == 0) {
+		return;
+	}
+	middle = part(priceIndexList, 0, num-1);
+	quickSort(priceIndexList, middle);
+	quickSort(priceIndexList+middle+1, num - middle - 1);
 }
 void doPriceDescend(int *priceDescend, int *weight, int *value, int num) {
 	int i = 0;
@@ -32,13 +71,15 @@ void doPriceDescend(int *priceDescend, int *weight, int *value, int num) {
 		(priceIndexList[i]).index = i;
 		(priceIndexList[i]).price = (float)value[i] / (float)weight[i];
 	}
-	sort(priceIndexList, num);
+	quickSort(priceIndexList, num);
 	for (i = 0; i < num; ++i) {
 		priceIndex tmp = priceIndexList[i];
 		priceDescend[i] = tmp.index;
 	}
 	tk_free(priceIndexList);
 }
+
+
 typedef struct {
 	float* list;
 	float tatol;
@@ -80,9 +121,6 @@ packedList* packBreadthFirst(int num, int *weight, int *value, int *priceDescend
 		listNoPack->tatolValue = havePacked->tatolValue;
 	}
 	currentMaxWeight = (float)maxPack - (float)listPack->tatol;
-
-
-
 	if (currentMaxWeight <= weight[priceDescend[next]]) {
 		(listPack->list)[next] = currentMaxWeight;
 	} else {
@@ -104,6 +142,7 @@ packedList* packBreadthFirst(int num, int *weight, int *value, int *priceDescend
 	freePackedList(listNoPack);
 	return ret;
 }
+
 
 void printReslut(packedList* list, int num, int *weight, int *value, int *priceDescend) {
 	int i = 0;
@@ -130,5 +169,6 @@ int main() {
 	tk_free(weight); 
 	tk_free(priceDescend);
 	tk_free(value);
+	tk_bookkeeper_mem_report();
 	return 0;
 }
