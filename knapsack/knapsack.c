@@ -146,6 +146,9 @@ packedList* packBreadthFirst(int num, int *weight, int *value, int *priceDescend
 }
 
 
+
+
+
 void printReslut(packedList* list, int num, int *weight, int *value, int *priceDescend) {
 	int i = 0;
 	printf("tatol %f\n", list->tatol);
@@ -154,6 +157,166 @@ void printReslut(packedList* list, int num, int *weight, int *value, int *priceD
 		printf("%d:%f(w)\n", priceDescend[i], (list->list)[i]);
 		i++;
 	}
+}
+typedef struct {
+	int index;
+	float weight;
+}packNode;
+typedef struct {
+	stack* s;
+	float tatolWeight;
+	float tatolValue;
+}packStack;
+Queue* allResult = 0;
+packStack* currentPackStack = 0;
+packStack* getCurrentStack() {
+	if (currentPackStack == 0) {
+		currentPackStack = tk_calloc(1, sizeof(packStack));
+		currentPackStack->s = stack_init(1);
+	}
+	return currentPackStack;
+}
+void destoryStack(packStack* ps) {
+	if (ps == 0) {
+		return;
+	}
+	stack_destory(ps->s);
+
+	tk_free(ps);
+}
+void destoryCurrentStack() {
+	destoryStack(currentPackStack);
+	currentPackStack = 0;
+}
+void destoryAllResult() {
+	packStack* ps = 0;
+	if (allResult == 0) {
+		return;
+	}
+	ps = (packStack*)QueueGet(allResult);
+	while(ps != 0) {
+		destoryStack(ps);
+		ps = (packStack*)QueueGet(allResult);
+	}
+	QueueDestory(allResult);
+	allResult = 0;
+}
+void saveCurrentResult() {
+	packStack* tmp = 0, *tp = 0;
+	packNode* node = 0;
+	if (currentPackStack == 0) {
+		return;
+	}
+	if (currentPackStack->s == 0) {
+		return;
+	}
+	if (allResult == 0) {
+		allResult = QueueInit();
+	}
+	tmp = tk_calloc(1, sizeof(packStack));
+	tmp->s = stack_init(1);
+	tp = tk_calloc(1, sizeof(packStack));
+	tp->s = stack_init(1);
+	node = stack_pop(currentPackStack->s);
+	tmp->tatolValue = tp->tatolValue = currentPackStack->tatolValue;
+	tmp->tatolWeight = tp->tatolWeight = currentPackStack->tatolWeight;
+	while(node != 0) {
+		packNode* tmpNode = tk_calloc(1, sizeof(packNode));
+		*tmpNode = *node;
+		stack_push(tp->s, tmpNode);
+		stack_push(tmp->s, node);
+		node = stack_pop(currentPackStack->s);
+	}
+	node = stack_pop(tmp->s);
+	while(node != 0) {
+		stack_push(currentPackStack->s, node);
+		node = stack_pop(tmp->s);
+	}
+	QueueAdd(allResult, (void*)tp);
+	destoryStack(tmp);
+}
+void pushPackNode(packNode* node, int *weight, int *value) {
+	if (node == 0) {
+		return;
+	}
+	if (currentPackStack == 0) {
+		getCurrentStack();
+	}
+	if (currentPackStack->s == 0) {
+		currentPackStack->s = stack_init(1);
+	}
+	stack_push(currentPackStack->s, node);
+	currentPackStack->tatolWeight += node->weight;
+	currentPackStack->tatolValue += ((float)value[node->index]/(float)weight[node->index])*(node->weight);
+}
+void popPackNode(int *weight, int *value) {
+	packNode* node = 0;
+	if (currentPackStack == 0) {
+		return;
+	}
+	if (currentPackStack->s == 0) {
+		return;
+	}
+	node = stack_pop(currentPackStack->s);
+	if (node == 0) {
+		return;
+	}
+	currentPackStack->tatolWeight -= node->weight;
+	currentPackStack->tatolValue -= ((float)value[node->index]/(float)weight[node->index])*(node->weight);
+	tk_free(node);
+}
+void packDeepFirst(int num, int *weight, int *value, 
+	int *priceDescend, int maxPack, int currentV, int isPack) {
+	packStack* ps = getCurrentStack();
+	packNode* node = 0;
+	float currentMaxWeight = 0;
+	if (currentV >= num) {
+		return;
+	}
+	currentMaxWeight = maxPack - ps->tatolWeight;
+	node = tk_calloc(1, sizeof(packNode));
+	node->index = priceDescend[currentV];
+	if (isPack == 1) {
+		node->weight = (currentMaxWeight >= weight[priceDescend[currentV]])?weight[priceDescend[currentV]]:currentMaxWeight;
+	}
+	pushPackNode(node, weight, value);
+	if (ps->tatolWeight >= maxPack) {
+		saveCurrentResult();
+	} else {
+		packDeepFirst(num, weight, value, priceDescend, maxPack, currentV+1, 1);
+		packDeepFirst(num, weight, value, priceDescend, maxPack, currentV+1, 0);
+	}
+	popPackNode(weight, value);
+}
+void printAllResult() {
+	packStack* tmp = 0;
+	packNode* node = 0;
+	printf("\ndeep result\n");
+	if (allResult == 0) {
+		printf("no result\n");
+	}
+	tmp = (packStack*)QueueGet(allResult);
+	while(tmp != 0) {
+		printf("\ntatolValue = %f, tatolWeight = %f :\n", tmp->tatolValue, tmp->tatolWeight);
+		do {
+			node = (packNode*)stack_pop(tmp->s);
+			if (node == 0) {
+				break;
+			}
+			printf("%d:%f\n", node->index, node->weight);
+			tk_free(node);
+		}while(1);
+		destoryStack(tmp);
+		tmp = (packStack*)QueueGet(allResult);
+	}
+} 
+void doPackDeep(int num, int *weight, int *value, 
+	int *priceDescend, int maxPack) {
+	packDeepFirst(num, weight, value, priceDescend, maxPack, 0, 1);
+	packDeepFirst(num, weight, value, priceDescend, maxPack, 0, 0);
+	destoryCurrentStack();
+	printAllResult();
+	destoryAllResult();
 }
 #define MAXPACK 60
 int main() {
@@ -167,6 +330,7 @@ int main() {
 	doPriceDescend(priceDescend, weight, value, num);
 	list = packBreadthFirst(num, weight, value, priceDescend, MAXPACK, 0);
 	printReslut(list, num, weight, value, priceDescend);
+	doPackDeep(num, weight, value, priceDescend, MAXPACK);
 	freePackedList(list);
 	tk_free(weight); 
 	tk_free(priceDescend);
