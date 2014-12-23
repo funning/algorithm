@@ -161,6 +161,9 @@ void printReslut(packedList* list, int num, int *weight, int *value, int *priceD
 typedef struct {
 	int index;
 	float weight;
+	int currentNum;
+	int isPack;
+	int state;
 }packNode;
 typedef struct {
 	stack* s;
@@ -235,6 +238,7 @@ void saveCurrentResult() {
 	QueueAdd(allResult, (void*)tp);
 	destoryStack(tmp);
 }
+int trace = 0;
 void pushPackNode(packNode* node, int *weight, int *value) {
 	if (node == 0) {
 		return;
@@ -246,8 +250,12 @@ void pushPackNode(packNode* node, int *weight, int *value) {
 		currentPackStack->s = stack_init(1);
 	}
 	stack_push(currentPackStack->s, node);
-	currentPackStack->tatolWeight += node->weight;
-	currentPackStack->tatolValue += ((float)value[node->index]/(float)weight[node->index])*(node->weight);
+	if (node->weight >= 0) {
+		currentPackStack->tatolWeight += node->weight;
+	}
+	if (node->index >= 0) {
+		currentPackStack->tatolValue += ((float)value[node->index]/(float)weight[node->index])*(node->weight);
+	}
 }
 void popPackNode(int *weight, int *value) {
 	packNode* node = 0;
@@ -261,8 +269,12 @@ void popPackNode(int *weight, int *value) {
 	if (node == 0) {
 		return;
 	}
-	currentPackStack->tatolWeight -= node->weight;
-	currentPackStack->tatolValue -= ((float)value[node->index]/(float)weight[node->index])*(node->weight);
+	if (node->weight >= 0) {
+		currentPackStack->tatolWeight -= node->weight;
+	}
+	if (node->index >= 0) {
+		currentPackStack->tatolValue -= ((float)value[node->index]/(float)weight[node->index])*(node->weight);
+	}
 	tk_free(node);
 }
 void packDeepFirst(int num, int *weight, int *value, 
@@ -288,6 +300,76 @@ void packDeepFirst(int num, int *weight, int *value,
 	}
 	popPackNode(weight, value);
 }
+void dealNode(int num, int *weight, int *value, int *priceDescend, int maxPack, 
+	int currentV, int isPack, void* p) {
+	packStack* ps = getCurrentStack();
+	float currentMaxWeight = maxPack - ps->tatolWeight;
+	packNode* node = tk_calloc(1, sizeof(packNode));
+	node->index = priceDescend[currentV];
+	if (isPack == 1) {
+		node->weight = (currentMaxWeight >= weight[priceDescend[currentV]])?weight[priceDescend[currentV]]:currentMaxWeight;
+	}
+	pushPackNode(node, weight, value);
+	if (ps->tatolWeight >= maxPack) {
+		saveCurrentResult();
+	} else {
+		((void(*)(int, int *, int *, int *, int , int ))p)(num, weight, value, priceDescend, maxPack, currentV+1);
+		
+		// void(*fuc)(int, int *, int *, int *, int , int ) = 0;
+		// fuc = p;
+		// fuc(num, weight, value, priceDescend, maxPack, currentV+1);
+	}
+	popPackNode(weight, value);
+}
+void packDeepFirstReal(int num, int *weight, int *value, 
+	int *priceDescend, int maxPack, int currentV) {
+	if (currentV >= num) {
+		return;
+	}
+	dealNode(num, weight, value, priceDescend, maxPack, currentV, 1, packDeepFirstReal);
+	dealNode(num, weight, value, priceDescend, maxPack, currentV, 0, packDeepFirstReal);
+}
+void noRecursivePushPackNode(packNode* node, int *weight, int *value, stack* deepStack) {
+	packNode* resultNode = 0;
+	stack_push(deepStack, node);
+	if (node->currentNum == -1) {
+		trace = 1;
+		// return;
+	}
+	resultNode = tk_calloc(1, sizeof(packNode));
+	*resultNode = *node;
+	pushPackNode(resultNode, weight, value);
+	// trace = 0;
+}
+packNode* createNextNode(stack* deepStack, packNode* currentNode, int *priceDescend, int *weight, int *value) {
+	packNode* nextNode = 0;
+	if (deepStack == 0) {
+		return nextNode;
+	}
+	if (currentNode == 0) {
+		nextNode = tk_calloc(1, sizeof(packNode));
+		nextNode->index = priceDescend[nextNode->currentNum];
+		return nextNode;
+	}
+	nextNode = tk_calloc(1, sizeof(packNode));
+	nextNode->currentNum = currentNode->currentNum + 1;
+	nextNode->index = priceDescend[nextNode->currentNum];
+	if (currentNode->state == 1) {
+		nextNode->isPack = 1;
+	}
+	currentNode->state += 1;
+	noRecursivePushPackNode(currentNode, weight, value, deepStack);
+	return nextNode;
+}
+packNode* noRecursivePopPackNode(int *weight, int *value, stack* deepStack) {
+	packNode* node = 0;
+	popPackNode(weight, value);
+	if (deepStack == 0) {
+		return node;
+	}
+	node = stack_pop(deepStack);
+	return node;
+}
 void printAllResult() {
 	packStack* tmp = 0;
 	packNode* node = 0;
@@ -312,12 +394,50 @@ void printAllResult() {
 } 
 void doPackDeep(int num, int *weight, int *value, 
 	int *priceDescend, int maxPack) {
-	packDeepFirst(num, weight, value, priceDescend, maxPack, 0, 1);
-	packDeepFirst(num, weight, value, priceDescend, maxPack, 0, 0);
+	// packDeepFirst(num, weight, value, priceDescend, maxPack, 0, 1);
+	// packDeepFirst(num, weight, value, priceDescend, maxPack, 0, 0);
+	packDeepFirstReal(num, weight, value, priceDescend, maxPack, 0);
 	destoryCurrentStack();
 	printAllResult();
 	destoryAllResult();
 }
+void packDeepFirstNoRecursive(int num, int *weight, int *value, 
+	int *priceDescend, int maxPack) {
+	stack* deepStack = stack_init(1);
+	packNode* currentNode = tk_calloc(1, sizeof(packNode));
+	packNode* nextNode = 0;
+	packStack* ps = 0;
+	currentNode->currentNum = -1;
+	currentNode->index = -1;
+	noRecursivePushPackNode(currentNode, weight, value, deepStack);
+	while(stack_empty(deepStack) == 0) {
+		currentNode = noRecursivePopPackNode(weight, value, deepStack);
+		if (currentNode->state == 2) {
+			tk_free(currentNode);
+			continue;
+		}
+		nextNode = createNextNode(deepStack, currentNode, priceDescend, weight, value);
+		ps = getCurrentStack();
+		if (nextNode->currentNum >= num) {
+			tk_free(nextNode);
+			continue;
+		}
+		if (nextNode->isPack == 1) {
+			float currentMaxWeight = (maxPack - ps->tatolWeight >= 0)?maxPack - ps->tatolWeight:0;
+			nextNode->weight = (currentMaxWeight <= weight[nextNode->index])?currentMaxWeight:weight[nextNode->index];
+		}
+		noRecursivePushPackNode(nextNode, weight, value, deepStack);
+		ps = getCurrentStack();
+		if (ps->tatolWeight >= maxPack) {
+			saveCurrentResult();
+		}
+	}
+	stack_destory(deepStack);
+	destoryCurrentStack();
+	printAllResult();
+	destoryAllResult();
+}
+
 #define MAXPACK 60
 int main() {
 	int num = 0;
@@ -327,10 +447,12 @@ int main() {
 	packedList* list = 0;
 	init(&num, &weight, &value);
 	priceDescend = tk_calloc(1, sizeof(int)*num);
+
 	doPriceDescend(priceDescend, weight, value, num);
 	list = packBreadthFirst(num, weight, value, priceDescend, MAXPACK, 0);
 	printReslut(list, num, weight, value, priceDescend);
 	doPackDeep(num, weight, value, priceDescend, MAXPACK);
+	packDeepFirstNoRecursive(num, weight, value, priceDescend, MAXPACK);
 	freePackedList(list);
 	tk_free(weight); 
 	tk_free(priceDescend);
