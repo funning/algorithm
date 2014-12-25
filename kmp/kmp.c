@@ -24,15 +24,41 @@ void initNextList(int* nextList, char* t) {
 		}
 	}
 }
+void initNextListVal(int* nextList, char* t) {
+	int tLen = 0, j = 0, k = -1;
+	if (t == 0) {
+		return;
+	}
+	nextList[0] = -1;
+	tLen = strlen(t);
+	while (j < tLen) {
+		if (k == -1 || t[j] == t[k]) {
+			k++;
+			j++;
+			if (t[j] != t[k]) {
+				nextList[j] = k;
+			} else {
+				nextList[j] = nextList[k];
+			}
+		} else {
+			k = nextList[k];
+		}
+	}
+}
+
 int next(char* t, int j, int* nextList) {
 	if (j >= strlen(t) || t < 0) {
 		return 0;
 	}
 	if (nextList[0] == 0) {
-		initNextList(nextList, t);
+		// initNextList(nextList, t);
+		initNextListVal(nextList, t);
 	}
 	return nextList[j];
 }
+
+
+
 char* kmpStrStr(char* s, char* t) {
 	char* p = 0;
 	int sLen = strlen(s);
@@ -55,6 +81,7 @@ char* kmpStrStr(char* s, char* t) {
 	// 		break;
 	// 	}
 	// }
+	
 	while (i < sLen && j < tLen) {
 		if (j == -1 || s[i] == t[j]) {
 			i++;
